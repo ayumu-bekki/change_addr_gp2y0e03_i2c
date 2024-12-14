@@ -4,11 +4,10 @@
 // https://akizukidenshi.com/goodsaffix/GP2Y0E02_an_20180829.pdf
 
 /*
-実行例
-I (461) change_addr_gp2y0e03_i2c: Start
-I (461) change_addr_gp2y0e03_i2c: Set New Device ID : 0x20
+実行結果例 
 I (3461) gpio: GPIO[13]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 
 I (3461) change_addr_gp2y0e03_i2c: Start
+I (3461) change_addr_gp2y0e03_i2c: Set Device ID : 0x10, Write Id: 0x20
 I (3461) change_addr_gp2y0e03_i2c: Stage1
 I (3461) change_addr_gp2y0e03_i2c: Stage2
 I (3471) change_addr_gp2y0e03_i2c: Stage3
@@ -19,9 +18,9 @@ I (3491) change_addr_gp2y0e03_i2c: Stage7
 I (3491) change_addr_gp2y0e03_i2c: Stage8
 I (3501) change_addr_gp2y0e03_i2c: Finish!
 I (3501) change_addr_gp2y0e03_i2c: Check Device Id
-I (3511) change_addr_gp2y0e03_i2c: New I2C Device Id : 0x20
+I (3511) change_addr_gp2y0e03_i2c: I2C Device Id : 0x10
 I (3511) change_addr_gp2y0e03_i2c: Stage9
-I (3521) change_addr_gp2y0e03_i2c: I2C Device Id : 0x20, Write Id: 0x40
+I (3521) change_addr_gp2y0e03_i2c: Result > I2C Device Id : 0x10, Write Id: 0x20
 I (3531) change_addr_gp2y0e03_i2c: Finish!
 */
 
@@ -41,18 +40,13 @@ fn main() {
     esp_idf_svc::sys::link_patches();
     esp_idf_svc::log::EspLogger::initialize_default();
 
-    log::info!("Start");
-    log::info!("Set New Device ID : 0x{:x}", NEW_DEVICE_ID);
-
-    std::thread::sleep(std::time::Duration::from_millis(3000));
-
     // 設定したいデバイスID (要書き換え) > Slave ID : Write
-    const NEW_WRITE_DEVICE_ID : u8 = 0x40;
+    const NEW_WRITE_DEVICE_ID : u8 = 0x20;
 
     // ペリフェラルの取得 (必要に応じて書き換え)
     let peripherals = Peripherals::take().unwrap();
-    let i2c_scl = peripherals.pins.gpio18; // SCL Pin
-    let i2c_sda = peripherals.pins.gpio19; // SDA Pin
+    let i2c_scl = peripherals.pins.gpio27; // SCL Pin
+    let i2c_sda = peripherals.pins.gpio26; // SDA Pin
     let vpp_pin = peripherals.pins.gpio13; // GPIO Write Pin
     let i2c: I2C0 = peripherals.i2c0;
 
@@ -73,6 +67,9 @@ fn main() {
 
     // 書き込みシーケンス開始
     log::info!("Start");
+    log::info!("Set Device ID : 0x{:x}, Write Id: 0x{:x}", NEW_DEVICE_ID, NEW_DEVICE_ID << 1);
+    
+    std::thread::sleep(std::time::Duration::from_millis(3000));
 
     log::info!("Stage1");
     match i2c_driver.write(i2c_device_id, &[0xec, 0xff], TickType_t::from(TickType::new_millis(100))) {
@@ -138,10 +135,9 @@ fn main() {
     }
 
     log::info!("Finish!");
-
     log::info!("Check Device Id");
     let i2c_device_id : u8 = NEW_DEVICE_ID;
-    log::info!("New I2C Device Id : 0x{:x}", i2c_device_id);
+    log::info!("I2C Device Id : 0x{:x}", i2c_device_id);
 
     log::info!("Stage9");
     // Bank Select (0xEF:R/W)
@@ -175,7 +171,7 @@ fn main() {
             return;
         }
     };
-    log::info!("I2C Device Id : 0x{:x}, Write Id: 0x{:x}", device_id, device_id << 1);
+    log::info!("Result > I2C Device Id : 0x{:x}, Write Id: 0x{:x}", device_id, device_id << 1);
 
     // Bank Select (0xEF:R/W)
     match i2c_driver.write(i2c_device_id, &[0xef, 0x00], TickType_t::from(TickType::new_millis(100))) {
